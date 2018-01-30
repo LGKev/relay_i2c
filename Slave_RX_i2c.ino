@@ -26,7 +26,7 @@
 int update_register = 0;
 int relay_state = 0; //default off;
 
-int new_address;
+int new_address; //latest address for the slave.
 
 byte registerMap[REGISTER_MAP_SIZE];
 byte receievedCommands[MAX_BYTES_RECEIVED];
@@ -56,10 +56,13 @@ void setup() {
   
   registerMap[1] = 0;
   
+  new_address = SLAVE_ADDRESS;
+  
 }
 
 void loop() {
-	
+	Serial.print("the address of the slave is:  ");
+	Serial.println(new_address);
 	//check the flags ... polling?
 	if(update_register == 1){
 		//update the stuff
@@ -67,15 +70,6 @@ void loop() {
 		//TODO: add ability to change slave address. 
 		update_register = 0; //reset flag`
 	}
-	
-	//Serial.print("registerMAP[1] =  ");
-	//Serial.println(registerMap[1]);
-	
-	
-	
-	Serial.print("relay state  ");
-	Serial.println(relay_state);
-	
 	
 	//check here the state of the relay, in registger map
 	// set relay accordingly. 
@@ -85,16 +79,13 @@ void loop() {
 		registerMap[2] = "test";
 		
 		digitalWrite(RELAY_PIN, HIGH);
-		Serial.println(" \n ON!! @74 \n");
 		digitalWrite(13, HIGH);
 	}
 	if(registerMap[1] == 0){
 		
 		//update status register
-		registerMap[2] = 0100000;
-		
+
 		digitalWrite(RELAY_PIN, LOW);
-				Serial.println(" OFF!! @79");
 		digitalWrite(13, LOW);
 	}
   delay(100);
@@ -139,8 +130,11 @@ switch(receievedCommands[0]){
 	//case change the slave's address
 	case 0x00:
 	update_register = 1;
-	//new_address = receievedCommands[1];
-	//Wire.begin(new_address);
+	new_address = receievedCommands[1];
+	Serial.println("****************/n/n");
+		Wire.begin(new_address);
+		Serial.println(new_address, HEX);
+	Serial.println("****************/n/n");
 		bytesReceived--; 
 		if(bytesReceived == 1){
 			return; // only expecting 2 bytes 
@@ -148,9 +142,8 @@ switch(receievedCommands[0]){
 
 	//case TURN_ON_REG:
 	case 0x01:
-	//digitalWrite(13, HIGH);
-	//digitalWrite(RELAY_PIN, HIGH);
 	//next byte is the state, 1 is on, 0 is off. 
+
 	relay_state = receievedCommands[1]; 
 	update_register = 1;
 		bytesReceived--; 
