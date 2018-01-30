@@ -4,6 +4,7 @@
 // Created 1/25/2018
 
 #include <Wire.h>
+#include <String.h>
 
 #define RELAY_PIN 3
 
@@ -25,6 +26,7 @@
 int update_register = 0;
 int relay_state = 0; //default off;
 
+int new_address;
 
 byte registerMap[REGISTER_MAP_SIZE];
 byte receievedCommands[MAX_BYTES_RECEIVED];
@@ -78,11 +80,19 @@ void loop() {
 	//check here the state of the relay, in registger map
 	// set relay accordingly. 
 	if(registerMap[1] == 1){
+		
+		//update status register
+		registerMap[2] = "test";
+		
 		digitalWrite(RELAY_PIN, HIGH);
 		Serial.println(" \n ON!! @74 \n");
 		digitalWrite(13, HIGH);
 	}
 	if(registerMap[1] == 0){
+		
+		//update status register
+		registerMap[2] = 0100000;
+		
 		digitalWrite(RELAY_PIN, LOW);
 				Serial.println(" OFF!! @79");
 		digitalWrite(13, LOW);
@@ -101,10 +111,7 @@ void update(){
 //When the slave receives data from the master
 //we know we expect only the address and a single command.
 // so we know we only are expecting 2 bytes. 
-void receiveEvent(int bytesReceived) {
-	Serial.println("yo!");
-	digitalWrite(13, HIGH);
-	
+void receiveEvent(int bytesReceived) {	
   for(int i = 0; i < bytesReceived; i++){
 	  //loop through the data from the master
 	  if(i < MAX_BYTES_RECEIVED){
@@ -129,6 +136,15 @@ void receiveEvent(int bytesReceived) {
 //this is how we filter out a read vs a write register.
 
 switch(receievedCommands[0]){
+	//case change the slave's address
+	case 0x00:
+	update_register = 1;
+	//new_address = receievedCommands[1];
+	Wire.begin(new_address);
+		bytesReceived--; 
+		if(bytesReceived == 1){
+			return; // only expecting 2 bytes 
+		}
 
 	//case TURN_ON_REG:
 	case 0x01:
@@ -141,6 +157,8 @@ switch(receievedCommands[0]){
 		if(bytesReceived == 1){
 			return; // only expecting 2 bytes 
 		}
+		
+		
 
 	default:
 	//trying to write to a READ-ONLY register.
@@ -153,8 +171,21 @@ switch(receievedCommands[0]){
 }// end of receive ISR
 
 //When the slave receives data from the bus 
+// Wire.requestFrom(SLAVE_ADDRESS, REGISTER_MAP_SIZE)
 void requestEvent() {
+	
 	Wire.write(registerMap, REGISTER_MAP_SIZE);
+	
+	//String statusRegisterString = String(registerMap[2]);
+	//Serial.print("Status   ");
+	//Serial.println(registerMap[2]);
+	
+	
+	//Wire.write(1);
+	//Wire.write(64);
+	//Wire.write(97);
+	
+	
 	//we will send entire map, but we only need to 
 	// send the status, so probably bit shift?
 	
