@@ -140,7 +140,7 @@ switch(receievedCommands[0]){
 	case 0x00:
 	update_register = 1;
 	//new_address = receievedCommands[1];
-	Wire.begin(new_address);
+	//Wire.begin(new_address);
 		bytesReceived--; 
 		if(bytesReceived == 1){
 			return; // only expecting 2 bytes 
