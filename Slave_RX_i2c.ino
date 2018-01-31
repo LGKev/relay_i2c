@@ -111,8 +111,8 @@ void relayConfig() {
     //case change the slave's address
     case 0x00:
       update_register = 1;
-      //new_address = receievedCommands[1];
-      new_address = 1;
+      new_address = receievedCommands[1];
+     // new_address = 1;
 //      bytesReceived--;
 //      if (bytesReceived == 1) {
 //        return; // only expecting 2 bytes
