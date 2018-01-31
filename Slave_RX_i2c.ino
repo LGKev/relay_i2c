@@ -9,8 +9,8 @@
 //#define DEBUG_OUTPUT
 
 
-#define RELAY_PIN 3
-
+#define RELAY_PIN 	3
+#define LED_PIN		13
 
 #define MAX_BYTES_RECEIVED 3 //we only are sending to turn ON, OFF, STATUS
 // I think its 3 bytes because, you first send address
@@ -55,11 +55,8 @@ void setup() {
   pinMode(13, OUTPUT);
   digitalWrite(13, HIGH);
   digitalWrite(RELAY_PIN, LOW);
-
-  registerMap[1] = 0;
-
+  registerMap[1] = 0; //Relay NC 
   new_address = SLAVE_ADDRESS;
-
 }
 
 void loop() {
@@ -70,7 +67,6 @@ void loop() {
 	Serial.println(new_address);
 #endif
   relayConfig();
-
   //check the flags ... polling?
   if (update_register == 1) {
     //update the stuff
@@ -78,24 +74,23 @@ void loop() {
     update_register = 0; //reset flag`
   }
   //check here the state of the relay, in register map
-  // set relay accordingly.
+  // the following code can probably be a nice function.
+  // set relay STATE accordingly.
   if (registerMap[1] == 1) {
 	  //TODO: add the status register update here.
     digitalWrite(RELAY_PIN, HIGH);
-    digitalWrite(13, HIGH);
+    digitalWrite(LED_PIN, HIGH);
   }
   if (registerMap[1] == 0) {
 		//TODO: add the status register update here
     digitalWrite(RELAY_PIN, LOW);
-    digitalWrite(13, LOW);
+    digitalWrite(LED_PIN, LOW);
   }
 }
 
 /*========================================================*/
 // 				Helper Functions
 /*========================================================*/
-
-
 /*
 		@brief: Parses the commands received to determine how the
 			slave device should behave. this is where the address 
@@ -109,7 +104,6 @@ void loop() {
 */
 void relayConfig() {
   //now we have collected info, now we need to parse it.
-  // so we are really parsing the command here, and
   // use a switch statement to change based on the command
 #ifdef DEBUG_OUTPUT
 Serial.print("the RxCommand[0] is:   ");
@@ -152,11 +146,11 @@ Serial.println(receievedCommands[0]);
 }
 
 /*
-		@brief: 
-		@input: 
-		@returns: nothing
-		
-		@flags:  update_register flag to 1
+		@brief: Sets i2c address being used, updates the 
+			registerMap for relay state on or off
+		@input: none, *global slave address*
+		@returns: none
+		@flags:  none
 */
 void update() {
   //write to the memory register. status register?
@@ -164,7 +158,20 @@ void update() {
   registerMap[1] = relay_state;
 }
 
-//When the master requests data from slave
+
+
+
+/*========================================================*/
+// 				ISR
+/*========================================================*/
+/*
+		@brief: When the master initiates a command and data to slave
+		@input: bytesReceieved, to compare how many bytes received, 
+			with how many bytes expected. Only keep the number of expected
+			and then lose the rest.
+		@returns: none
+		@flags:  none
+*/
 void receiveEvent(int bytesReceived) {
   for (int i = 0; i < bytesReceived; i++) {
     //loop through the data from the master
@@ -177,10 +184,16 @@ void receiveEvent(int bytesReceived) {
   }
 }// end of receive ISR
 
-//When the slave receives data from the bus
-// Wire.requestFrom(SLAVE_ADDRESS, REGISTER_MAP_SIZE)
+
+/*
+		@brief: When the master requests data from the slave, this
+			ISR is triggered. Should give the master entire registerMAP.
+		@input: none, *global registerMAP*
+		@returns: none
+		@flags:  none
+*/
 void requestEvent() {
   Wire.write(registerMap, REGISTER_MAP_SIZE);
   //we will send entire map, but we only need to
-  // send the status, so probably bit shift?
+  // send the status, so bit shift?
 }// end of request ISR
