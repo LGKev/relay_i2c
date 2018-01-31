@@ -6,7 +6,11 @@
 #include <Wire.h>
 #include <String.h>
 
+#define DEBUG_OUTPUT
+
+
 #define RELAY_PIN 3
+
 
 #define MAX_BYTES_RECEIVED 3 //we only are sending to turn ON, OFF, STATUS
 // I think its 3 bytes because, you first send address
@@ -29,10 +33,10 @@ volatile bool relay_state = false; //default off;
 int new_address; //latest address for the slave.
 
 byte registerMap[REGISTER_MAP_SIZE];
-byte receievedCommands[MAX_BYTES_RECEIVED];
+volatile byte receievedCommands[MAX_BYTES_RECEIVED];
 
 
-//IRS prototypes
+//ISR prototypes
 void requestEvent(void);
 void receiveEvent(void);
 
@@ -61,8 +65,8 @@ void setup() {
 }
 
 void loop() {
-  Serial.print("the address of the slave is:  ");
-  Serial.println(new_address);
+//  Serial.print("the address of the slave is:  ");
+//  Serial.println(new_address);
   //check the flags ... polling?
   if (update_register == 1) {
     //update the stuff
@@ -70,6 +74,8 @@ void loop() {
     //TODO: add ability to change slave address.
     update_register = 0; //reset flag`
   }
+
+  relayConfig();
 
   //check here the state of the relay, in registger map
   // set relay accordingly.
@@ -92,27 +98,7 @@ void loop() {
 }
 
 
-void update() {
-  //write to the memory register. status register?
-  registerMap[1] = relay_state;
-}
-
-
-
-//When the slave receives data from the master
-//we know we expect only the address and a single command.
-// so we know we only are expecting 2 bytes.
-void receiveEvent(int bytesReceived) {
-  for (int i = 0; i < bytesReceived; i++) {
-    //loop through the data from the master
-    if (i < MAX_BYTES_RECEIVED) {
-
-      receievedCommands[i] = Wire.read();
-    }
-    else {
-      Wire.read(); // let them come but don't collect
-    }
-  }
+void relayConfig() {
 
   //now we have collected info, now we need to parse it.
   // so we are really parsing the command here, and
@@ -125,11 +111,13 @@ void receiveEvent(int bytesReceived) {
     //case change the slave's address
     case 0x00:
       update_register = 1;
-      new_address = receievedCommands[1];
-      bytesReceived--;
-      if (bytesReceived == 1) {
-        return; // only expecting 2 bytes
-      }
+      //new_address = receievedCommands[1];
+      new_address = 1;
+//      bytesReceived--;
+//      if (bytesReceived == 1) {
+//        return; // only expecting 2 bytes
+//      }
+    break;
 
     //case TURN_ON_REG:
     case 0x01:
@@ -137,12 +125,12 @@ void receiveEvent(int bytesReceived) {
 
       relay_state = receievedCommands[1];
       update_register = 1;
-      bytesReceived--;
-      if (bytesReceived == 1) {
-        return; // only expecting 2 bytes
-      }
+//      bytesReceived--;
+//      if (bytesReceived == 1) {
+//        return; // only expecting 2 bytes
+//      }
 
-
+    break;
 
     default:
       //trying to write to a READ-ONLY register.
@@ -152,15 +140,37 @@ void receiveEvent(int bytesReceived) {
   }
 
 
+}
+
+
+void update() {
+  //write to the memory register. status register?
+  registerMap[1] = relay_state;
+}
+
+
+
+//When the slave receives data from the master
+//we know we expect only the address and a single command. ie 0x01 is write to relay, and 1 or a 0 is the value we want to write.
+// so we know we only are expecting 2 bytes.
+void receiveEvent(int bytesReceived) {
+  for (int i = 0; i < bytesReceived; i++) {
+    //loop through the data from the master
+    if (i < MAX_BYTES_RECEIVED) {
+      receievedCommands[i] = Wire.read(); //all commands and data are collected in the ISR... do not process here.
+    }
+    else {
+      Wire.read(); // let them come but don't collect
+    }
+
+  }
+
 }// end of receive ISR
 
 //When the slave receives data from the bus
 // Wire.requestFrom(SLAVE_ADDRESS, REGISTER_MAP_SIZE)
 void requestEvent() {
-
   Wire.write(registerMap, REGISTER_MAP_SIZE);
-
-
   //we will send entire map, but we only need to
   // send the status, so probably bit shift?
 
