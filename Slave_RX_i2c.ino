@@ -7,7 +7,8 @@
 #include <String.h>
 
 //#define DEBUG_OUTPUT
-
+#define BIT0		0b00000001
+#define BIT1 		0b00000010
 
 #define RELAY_PIN 	3
 #define LED_PIN		13
@@ -56,22 +57,26 @@ void setup() {
   digitalWrite(13, HIGH);
   digitalWrite(RELAY_PIN, LOW);
   registerMap[1] = 0; //Relay NC 
+  registerMap[2] = 0x00; // all cleared
   new_address = SLAVE_ADDRESS;
 }
 
 void loop() {
-#ifdef DEBUG_OUTPUT
-	Serial.print("the RxCommand[0] @main loop top is:   ");
-	Serial.println(receievedCommands[0]);
-	Serial.print("the address of the slave is:  ");
-	Serial.println(new_address);
-#endif
   relayConfig();
   //check the flags ... polling?
   if (update_register == 1) {
     //update the stuff
     update(); // updates the relay state only.
     update_register = 0; //reset flag`
+	
+#ifdef DEBUG_OUTPUT
+	Serial.print("the address of the slave is:  ");
+	Serial.println(new_address);
+	
+	Serial.print("the status register is:  ");
+	byte statusBitStream = registerMap[2];
+	Serial.println(statusBitStream, BIN);
+#endif
   }
   //check here the state of the relay, in register map
   // the following code can probably be a nice function.
@@ -80,11 +85,13 @@ void loop() {
 	  //TODO: add the status register update here.
     digitalWrite(RELAY_PIN, HIGH);
     digitalWrite(LED_PIN, HIGH);
+	registerMap[2] |= BIT0;
   }
   if (registerMap[1] == 0) {
 		//TODO: add the status register update here
     digitalWrite(RELAY_PIN, LOW);
     digitalWrite(LED_PIN, LOW);
+	registerMap[2] &= ~BIT0; //this should make bit0 in the map[2] to be a 0.
   }
 }
 
@@ -105,17 +112,13 @@ void loop() {
 void relayConfig() {
   //now we have collected info, now we need to parse it.
   // use a switch statement to change based on the command
-#ifdef DEBUG_OUTPUT
-Serial.print("the RxCommand[0] is:   ");
-Serial.println(receievedCommands[0]);
-#endif
 
   switch (receievedCommands[0]) {
     case 0x03: //change slave address
       update_register = 1;
       new_address = receievedCommands[1];
  #ifdef DEBUG_OUTPUT
-	Serial.print("121 the newest address is: ");
+	Serial.print("The newest address is: ");
 	Serial.println(new_address);
 	  for(int i=0; i< 10; i++){
       digitalWrite(13, HIGH);
@@ -124,6 +127,8 @@ Serial.println(receievedCommands[0]);
       delay(75); 
       }
  #endif
+//QUESTION: what would happen if this was left out?, especially
+	//if the number of bytes expected is larger than 2.
 //      bytesReceived--;
 //      if (bytesReceived == 1) {
 //        return; // only expecting 2 bytes
@@ -141,6 +146,7 @@ Serial.println(receievedCommands[0]);
     default:
       //trying to write to a READ-ONLY register.
       digitalWrite(13, LOW);
+	  update_register = 0;
       return;// out of bounds
   }
 }
